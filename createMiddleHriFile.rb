@@ -42,11 +42,11 @@ import org.apache.hadoop.fs.FileSystem
 import org.apache.commons.logging.LogFactory
 
 # Name of this script
-NAME = "dumpregioninfo"
+NAME = "add_region"
 
 # Print usage for this script
 def usage
-  puts 'Usage: %s.rb <PATH_TO_REGIONINFO>' % NAME
+  puts 'Usage: %s.rb <SMALLER> <LARGER> <REGIONINFO>' % NAME
   exit!
 end
 
@@ -63,24 +63,44 @@ fs = FileSystem.get(c)
 LOG = LogFactory.getLog(NAME)
 
 # Check arguments
-if ARGV.size != 1
+if ARGV.size != 3
   usage
 end
 
 # Get cmdline args.
-regioninfo = fs.makeQualified(Path.new(java.lang.String.new(ARGV[0])))
-if not fs.exists(regioninfo)
-  raise IOError.new("regioninfo " + regioninfo.toString() + " doesn't exist!")
+def loadHri(path)
+  c = HBaseConfiguration.create()
+  c.set("fs.default.name", c.get(HConstants::HBASE_DIR))
+  fs = FileSystem.get(c)
+  regioninfo = fs.makeQualified(path)
+  if not fs.exists(regioninfo)
+    raise IOError.new("regioninfo " + regioninfo.toString() + " doesn't exist!")
+  end
+  is = fs.open(regioninfo)
+  hri = HRegionInfo.new()
+  hri.readFields(is)
+  is.close()
+  hri
 end
-is = fs.open(regioninfo)
-hri = HRegionInfo.new()
-hri.readFields(is)
-is.close()
 
-LOG.info("hri" + hri.toString())
-if hri.isOffline
-  LOG.info("ONLINE")
+def writeHri(path, hri)
+  c = HBaseConfiguration.create()
+  c.set("fs.default.name", c.get(HConstants::HBASE_DIR))
+  fs = FileSystem.get(c)
+  riOut = fs.makeQualified(path)
+  if fs.exists(riOut)
+    raise IOError.new("target file " + riOut.toString() + " already exists!")
+  end
+  os = fs.create(riOut)
+  hri.write(os)
+  os.close()
 end
-if hri.isSplit
-  LOG.info("SPLIT");
-end
+
+smaller = loadHri(Path.new(java.lang.String.new(ARGV[0])))
+larger = loadHri(Path.new(java.lang.String.new(ARGV[1])))
+
+htd = smaller.getTableDesc()
+hole = HRegionInfo.new(htd, smaller.getEndKey(), larger.getStartKey())
+writeHri(Path.new(java.lang.String.new(ARGV[2])), hole)
+
+LOG.info("wrote new .regionfile: " + hole.toString())

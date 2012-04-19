@@ -17,12 +17,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+############################################################
+# Add hri to meta  
+#
 # Script adds a table back to a running hbase.
 # Currently only works on if table data is in place.
 #
 # To see usage for this script, run:
 #
-#  ${HBASE_HOME}/bin/hbase org.jruby.Main addtable.rb
+#  ${HBASE_HOME}/bin/hbase org.jruby.Main addregion.rb
+#
+# 
 #
 include Java
 import org.apache.hadoop.hbase.util.Bytes
